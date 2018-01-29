@@ -10,3 +10,20 @@ en:
     setup: An error occurred. Please, check the plugin configuration
     first_tracker: First issue query (rows)
     second_tracker: Second issue query (columns)
+
+  # translation for options in plugin configure page
+  default_options: set options, which will always be added to macro traceability_matrix_detailed call(separate by ,)
+  test_date_format: set date/time format for test run date field (%Y, %m, %d, %H, %M, %S, etc.)
+  error_color: The color for displaying errors in test executions
+  missing_color: The color for displaying missing test runs
+  passed_color: The color for displaying passed rest runs
+
+  # translations for column names
+  column_name_id: Id
+  column_name_status: Status
+  column_name_subject: Subject
+  column_name_description: Description
+  column_name_testrun: Test run
+  column_name_version: Version
+  column_name_result: Result
+

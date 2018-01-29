@@ -19,10 +19,16 @@ class MtController < ApplicationController
   attr_accessor :tracker_cols
   attr_accessor :issue_pairs
   attr_accessor :not_seen_issue_cols
+  attr_accessor :col2_span
 
 
-  def init_macro_context(project)
+  def init_macro_context(project, use_redcase_data, use_colors, use_version, test_date_format)
     @project = project
+    @use_redcase_data = use_redcase_data
+    @use_colors = use_colors
+    @use_version = use_version
+    @test_date_format = test_date_format
+    @col2_span = 0
   end
   
   def build_list_of_issues 
@@ -46,14 +52,10 @@ class MtController < ApplicationController
     @not_seen_issue_cols = @issue_cols.dup
     relations.each do |relation|
       if @not_seen_issue_cols.include?relation.issue_to
-        @issue_pairs[relation.issue_from] ||= {}
-        @issue_pairs[relation.issue_from][relation.issue_to] ||= []
-        @issue_pairs[relation.issue_from][relation.issue_to] << true
+        set_issue_pairs(relation.issue_from, relation.issue_to, relation.issue_to.id)
         @not_seen_issue_cols.delete relation.issue_to
       elsif @not_seen_issue_cols.include?relation.issue_from
-        @issue_pairs[relation.issue_to] ||= {}
-        @issue_pairs[relation.issue_to][relation.issue_from] ||= []
-        @issue_pairs[relation.issue_to][relation.issue_from] << true
+        set_issue_pairs(relation.issue_to, relation.issue_from, relation.issue_to.id)
         @not_seen_issue_cols.delete relation.issue_from
       else
       end
@@ -64,23 +66,75 @@ class MtController < ApplicationController
     issue_rows_copy = @issue_rows.dup
     relations.each do |relation|
       if issue_rows_copy.include?relation.issue_from
-        @issue_pairs[relation.issue_from] ||= {}
-        @issue_pairs[relation.issue_from][relation.issue_to] ||= []
-        @issue_pairs[relation.issue_from][relation.issue_to] << true
+        set_issue_pairs(relation.issue_from, relation.issue_to, relation.issue_to.id)
         issue_rows_copy.delete relation.issue_to
       elsif issue_rows_copy.include?relation.issue_to
-        @issue_pairs[relation.issue_to] ||= {}
-        @issue_pairs[relation.issue_to][relation.issue_from] ||= []
-        @issue_pairs[relation.issue_to][relation.issue_from] << true
+        set_issue_pairs(relation.issue_to, relation.issue_from, relation.issue_to.id)
         issue_rows_copy.delete relation.issue_from
       else
       end
     end
 
-    return 
-    
+    return
   end
-  
+
+  def set_issue_pairs(first, second, issue_id)
+    test_case = TestCase.find_by_issue_id(issue_id)
+
+    @issue_pairs[first] ||= {}
+    @issue_pairs[first][second] ||= {}
+
+    if @use_redcase_data == 0
+      @issue_pairs[first][second]['result'] = 'no_test_defined'
+      @issue_pairs[first][second]['class'] = 'TestNotDefined'
+    elsif test_case.nil?
+      @issue_pairs[first][second]['result'] = 'no_test_defined'
+      @issue_pairs[first][second]['class'] = 'TestNotDefined'
+    else
+      @col2_span = 3
+      if @use_version.empty?
+        journal_entry = ExecutionJournal.where("test_case_id = #{test_case.id}").order('created_on DESC')[0]
+
+        if journal_entry.nil?
+          @issue_pairs[first][second]['version'] = '---'
+          @issue_pairs[first][second]['result'] = 'NotRun'
+          @issue_pairs[first][second]['class'] = 'TestNotRun'
+        else
+          result = ExecutionResult.find_by_id(journal_entry.result_id)
+          version = Version.find_by_id(journal_entry.version_id)
+          environ = ExecutionEnvironment.find_by_id(journal_entry.environment_id)
+          @issue_pairs[first][second]['class'] = "Test" + result.name.sub(" ","")
+          @issue_pairs[first][second]['version'] = version.name
+          @issue_pairs[first][second]['result'] = result.name
+          @issue_pairs[first][second]['environ'] = environ.name
+          @issue_pairs[first][second]['created'] = journal_entry.created_on.strftime(@test_date_format)
+        end
+      else
+        version = Version.find_by_name(@use_version)
+        journal_entry = ExecutionJournal.where("test_case_id = #{test_case.id} AND version_id = #{version.id}").order('created_on DESC')[0]
+
+        if journal_entry.nil?
+          @issue_pairs[first][second]['version'] = @use_version
+          @issue_pairs[first][second]['result'] = 'NotRun'
+          @issue_pairs[first][second]['class'] = 'TestNotRun'
+        else
+          result = ExecutionResult.find_by_id(journal_entry.result_id)
+          environ = ExecutionEnvironment.find_by_id(journal_entry.environment_id)
+          @issue_pairs[first][second]['class'] = "Test" + result.name.sub(" ","")
+          @issue_pairs[first][second]['version'] = version.name
+          @issue_pairs[first][second]['result'] = result.name
+          @issue_pairs[first][second]['environ'] = environ.name
+          @issue_pairs[first][second]['created'] = journal_entry.created_on.strftime(@test_date_format)
+        end
+      end
+    end
+
+    if @use_colors == false
+        @issue_pairs[first][second]['class'] = "NoColor"
+    end
+
+  end
+
   def get_trackers(query_rows_id=Setting.plugin_traceability_matrix['tracker0'],
                    query_cols_id=Setting.plugin_traceability_matrix['tracker1'])
     @tracker_rows = nil
@@ -125,6 +179,14 @@ class MtController < ApplicationController
     flash[:error] = l(:'traceability_matrix.setup')
     render
   end
+
+  def show
+    respond_to do |format|
+      format.pdf do
+        render :pdf => "file.pdf", :template => 'mt/_mt_details.html.erb'
+      end
+      format.html
+    end
+  end
+
 end
-
-

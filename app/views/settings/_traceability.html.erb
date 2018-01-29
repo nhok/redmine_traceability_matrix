@@ -1,10 +1,24 @@
 <p>
-  <label><%=l :'traceability_matrix.first_tracker' %> <span class="required">*</span></label>
-  <%= select_tag 'settings[tracker0]',
-                 options_from_collection_for_select(Query.all, :id, :name, @settings['tracker0'].to_i) %>
+  <%= label_tag :settings_default_options, l(:default_options) %>
+  <%= text_field_tag "settings[default_options]", @settings['default_options'] %>
 </p>
+
 <p>
-  <label><%=l :'traceability_matrix.second_tracker' %> <span class="required">*</span></label>
-  <%= select_tag 'settings[tracker1]',
-                 options_from_collection_for_select(Query.all, :id, :name, @settings['tracker1'].to_i) %>
+  <%= label_tag :settings_test_date_format, l(:test_date_format) %>
+  <%= text_field_tag "settings[test_date_format]", @settings['test_date_format'] %>
+</p>
+
+<p>
+  <%= label_tag :settings_error_color, l(:error_color) %>
+  <%= text_field_tag "settings[error_color]", @settings['error_color'] %>
+</p>
+
+<p>
+  <%= label_tag :settings_missing_color, l(:missing_color) %>
+  <%= text_field_tag "settings[missing_color]", @settings['missing_color'] %>
+</p>
+
+<p>
+  <%= label_tag :settings_passed_color, l(:passed_color) %>
+  <%= text_field_tag "settings[passed_color]", @settings['passed_color'] %>
 </p>
